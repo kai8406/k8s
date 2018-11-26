@@ -4,11 +4,19 @@ import com.keruyun.k8s.token.TokenConstant;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.AppsV1beta1Api;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.models.*;
 import io.kubernetes.client.util.Config;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.ssl.TrustStrategy;
 import org.junit.Test;
 import org.springframework.http.HttpEntity;
@@ -77,7 +85,7 @@ public class DeploymentTest {
 
         AppsV1beta1Api apiInstance = new AppsV1beta1Api(client);
 
-        String namespace = "test";
+        String namespace = "vipcitest";
         String pretty = "true";
 
 
@@ -163,7 +171,7 @@ public class DeploymentTest {
         ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
 
         AppsV1beta1Api apiInstance = new AppsV1beta1Api(client);
-        String namespace = "test";
+        String namespace = "vipcitest";
         String name = "k8s-demotest-viptest";
         String pretty = "true";
 
@@ -232,7 +240,7 @@ public class DeploymentTest {
      * 更多详情查看: https://github.com/kubernetes-client/java/issues/86
      */
     @Test
-    public void deleteNamespaceTest() {
+    public void deleteNamespacedDeploymentTest() {
 
         ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
 
@@ -265,7 +273,7 @@ public class DeploymentTest {
      * 更多详情查看: https://github.com/kubernetes-client/java/issues/86
      */
     @Test
-    public void deleteNamespaceByAPITest() throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+    public void deleteNamespacedDeploymentByAPITest() throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
 
         //绕开 ssl 认证,修改 RestTemplate 配置.
         TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
@@ -274,10 +282,19 @@ public class DeploymentTest {
                 .loadTrustMaterial(null, acceptingTrustStrategy)
                 .build();
 
+        //忽略域名验证
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.INSTANCE)
+                .register("https", new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE)).build();
+
+
         SSLConnectionSocketFactory csf = new SSLConnectionSocketFactory(sslContext);
 
+        HttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+
+
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLSocketFactory(csf)
+                .setSSLSocketFactory(csf).setConnectionManager(connManager)
                 .build();
 
         HttpComponentsClientHttpRequestFactory requestFactory =
@@ -381,6 +398,18 @@ public class DeploymentTest {
         map.put("k8s-app", "k8s-demotest-viptest");
         selector.setMatchLabels(map);
 
+
+        // strategy
+        AppsV1beta1DeploymentStrategy strategy = new AppsV1beta1DeploymentStrategy();
+
+        AppsV1beta1RollingUpdateDeployment rollingUpdate = new AppsV1beta1RollingUpdateDeployment();
+        rollingUpdate.setMaxSurge(new IntOrString("25%"));
+        rollingUpdate.setMaxUnavailable(new IntOrString("25%"));
+
+        strategy.setRollingUpdate(rollingUpdate);
+        strategy.setType("RollingUpdate");
+
+        spec.setStrategy(strategy);
         spec.setReplicas(replicas);
         spec.selector(selector);
         spec.setTemplate(wrapperDeployment_Spec_Template(namespace));
@@ -460,7 +489,7 @@ public class DeploymentTest {
         V1Container container = new V1Container();
 
         container.setName("k8s-demotest-viptest");
-        container.setImage("registry-vpc.cn-hangzhou.aliyuncs.com/shishike/oom:1.0");
+        container.setImage("swr.cn-east-2.myhuaweicloud.com/keruyun/hello:1.0");
         container.setImagePullPolicy("Always");
 
 
@@ -504,6 +533,41 @@ public class DeploymentTest {
 
         container.setVolumeMounts(volumeMounts);
 
+        // containers / readinessProbe
+
+        V1Probe readinessProbe = new V1Probe();
+
+        V1HTTPGetAction readinessHttpGet = new V1HTTPGetAction();
+        readinessHttpGet.setPath("/health");
+        readinessHttpGet.setScheme("HTTP");
+        readinessHttpGet.setPort(new IntOrString(8080));
+        readinessProbe.setHttpGet(readinessHttpGet);
+
+        readinessProbe.setInitialDelaySeconds(5);
+        readinessProbe.setFailureThreshold(3);
+        readinessProbe.setSuccessThreshold(1);
+        readinessProbe.setTimeoutSeconds(1);
+        readinessProbe.setPeriodSeconds(10);
+
+        container.setReadinessProbe(readinessProbe);
+
+        // containers / livenessProbe
+
+        V1Probe livenessProbe = new V1Probe();
+
+        V1HTTPGetAction livenessHttpGet = new V1HTTPGetAction();
+        livenessHttpGet.setPath("/health");
+        livenessHttpGet.setScheme("HTTP");
+        livenessHttpGet.setPort(new IntOrString(8080));
+        livenessProbe.setHttpGet(livenessHttpGet);
+
+        livenessProbe.setInitialDelaySeconds(5);
+        livenessProbe.setFailureThreshold(3);
+        livenessProbe.setSuccessThreshold(1);
+        livenessProbe.setTimeoutSeconds(1);
+        livenessProbe.setPeriodSeconds(10);
+
+        container.setLivenessProbe(livenessProbe);
 
         containers.add(container);
 

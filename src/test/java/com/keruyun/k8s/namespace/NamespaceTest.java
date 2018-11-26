@@ -6,9 +6,16 @@ import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.*;
 import io.kubernetes.client.util.Config;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.ssl.TrustStrategy;
 import org.junit.Test;
 import org.springframework.http.HttpEntity;
@@ -103,7 +110,7 @@ public class NamespaceTest {
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
-        String name = "vipcitest";
+        String name = "kry";
         String pretty = "true";
         Boolean exact = true;
         Boolean export = true;
@@ -111,6 +118,7 @@ public class NamespaceTest {
         try {
 
             V1Namespace result = apiInstance.readNamespace(name, pretty, exact, export);
+
             System.out.println(result);
 
         } catch (ApiException e) {
@@ -199,10 +207,19 @@ public class NamespaceTest {
                 .loadTrustMaterial(null, acceptingTrustStrategy)
                 .build();
 
+        //忽略域名验证
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.INSTANCE)
+                .register("https", new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE)).build();
+
+
         SSLConnectionSocketFactory csf = new SSLConnectionSocketFactory(sslContext);
 
+        HttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+
+
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLSocketFactory(csf)
+                .setSSLSocketFactory(csf).setConnectionManager(connManager)
                 .build();
 
         HttpComponentsClientHttpRequestFactory requestFactory =
