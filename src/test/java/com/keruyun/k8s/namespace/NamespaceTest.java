@@ -28,6 +28,8 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -42,9 +44,12 @@ public class NamespaceTest {
      * 查询 namespace 列表.
      */
     @Test
-    public void listNamespaceTest() {
+    public void listNamespaceTest() throws IOException {
 
-        ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
+
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream("kubeconfig-ci");
+
+        ApiClient client = Config.fromConfig(stream);
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
@@ -62,7 +67,7 @@ public class NamespaceTest {
 
             V1NamespaceList result = apiInstance.listNamespace(pretty, _continue, fieldSelector, includeUninitialized, labelSelector, limit, resourceVersion, timeoutSeconds, watch);
 
-            result.getItems().stream().forEach(s -> System.out.println(s.getMetadata().getName()));
+            result.getItems().forEach(s -> System.out.println(s.getMetadata().getName()));
 
         } catch (ApiException e) {
             System.err.println(e.getResponseBody());
@@ -74,9 +79,11 @@ public class NamespaceTest {
      * 创建 namespace.
      */
     @Test
-    public void createNamespaceTest() {
+    public void createNamespaceTest() throws IOException {
 
-        ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream("kubeconfig-ci");
+
+        ApiClient client = Config.fromConfig(stream);
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
@@ -104,13 +111,15 @@ public class NamespaceTest {
      * 查询 namespace 详情.
      */
     @Test
-    public void readNamespaceTest() {
+    public void readNamespaceTest() throws IOException {
 
-        ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream("kubeconfig-ci");
+
+        ApiClient client = Config.fromConfig(stream);
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
-        String name = "kry";
+        String name = "liukai";
         String pretty = "true";
         Boolean exact = true;
         Boolean export = true;
@@ -131,9 +140,11 @@ public class NamespaceTest {
      * replace namespace 内容.
      */
     @Test
-    public void replaceNamespaceTest() {
+    public void replaceNamespaceTest() throws IOException {
 
-        ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream("kubeconfig-ci");
+
+        ApiClient client = Config.fromConfig(stream);
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
@@ -167,9 +178,12 @@ public class NamespaceTest {
      * 更多详情查看: https://github.com/kubernetes-client/java/issues/86
      */
     @Test
-    public void deleteNamespaceTest() {
+    public void deleteNamespaceTest() throws IOException {
 
-        ApiClient client = Config.fromToken(TokenConstant.URL, TokenConstant.TOKEN, false);
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream("kubeconfig-ci");
+
+        ApiClient client = Config.fromConfig(stream);
+
 
         CoreV1Api apiInstance = new CoreV1Api(client);
 
@@ -229,7 +243,7 @@ public class NamespaceTest {
 
         RestTemplate restTemplate = new RestTemplate(requestFactory);
 
-        String name = "test";
+        String name = "liukai";
 
         String deleteUrl = TokenConstant.URL + "/api/v1/namespaces/" + name;
 
